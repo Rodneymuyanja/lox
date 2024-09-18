@@ -87,7 +87,7 @@ namespace lox.src
                 default:
                     if (IsDigit(c))
                     {
-
+                        Number();
                     }
                     else 
                     {
@@ -152,12 +152,15 @@ namespace lox.src
         {
             return c >= '0' && c <= '9';
         }
+
+        //lookahead one
         private char Peek()
         {
             if(IsAtEnd()) return '\0';
             return source_code[current];
         }
 
+        //lookahead 2
         private char PeekNext()
         {
             if(current + 1 >= source_code.Length) 
@@ -179,11 +182,13 @@ namespace lox.src
             return true;
         }
 
+        //move to the next character
         private char Advance()
         {
             return source_code[current++];
         }
 
+        //check if we're at the end of the source code
         private bool IsAtEnd()
         {
             return current >= source_code.Length;
