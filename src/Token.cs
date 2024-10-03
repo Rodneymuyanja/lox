@@ -1,12 +1,12 @@
 ﻿
 namespace lox.src
 {
-    internal class Token(TokenType _type, string _lexeme, object? _literal, int _line)
+    public class Token(TokenType _type, string _lexeme, object? _literal, int _line)
     {
-        TokenType token_type = _type;
-        string lexeme = _lexeme;
-        object literal = _literal!;   
-        int line = _line;
+        internal TokenType token_type = _type;
+        internal string lexeme = _lexeme;
+        internal object literal = _literal!;   
+        internal int line = _line;
 
         public override string ToString()
         {

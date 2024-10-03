@@ -80,5 +80,16 @@ namespace lox
             string out_put = $"[line {line}] Error {where} : {message}";
             Console.Error.WriteLine(out_put);
         }
+
+        public static void Error(Token token, string message)
+        {
+            if(token.token_type == TokenType.EOF)
+            {
+                Report(token.line, "at end of line", message);
+                return;
+            }
+
+            Report(token.line, $" at '{token.lexeme}' ", message);
+        }
     }
 }
