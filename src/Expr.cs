@@ -1,30 +1,50 @@
 ﻿
 
+using lox.src.Interfaces;
+
 namespace lox.src
 {
-    internal abstract class Expr
+    public abstract class Expr
     {
+        public abstract T Accept <T>(IVisitor<T> visitor);
         public class Binary(Expr _left, Token _operator, Expr _right) : Expr
         {
-            Expr left = _left;
-            Token __operator = _operator;
-            Expr right = _right;
+            public Expr left = _left;
+            public Token __operator = _operator;
+            public Expr right = _right;
 
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitBinaryExpr(this);
+            }
         }
         public class Grouping(Expr _expression) : Expr
         {
-            Expr expression = _expression;
+            public Expr expression = _expression;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitGroupExpr(this);
+            }
         }
         public class Literal(object _value) : Expr
         {
-            object value = _value;
+            public object value = _value;
 
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitLiteralExpr(this);
+            }
         }
         public class Unary(Token _operator, Expr _right) : Expr
         {
-            Token __operator = _operator;
-            Expr right = _right;
+            public Token __operator = _operator;
+            public Expr right = _right;
 
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitUnaryExpr(this);
+            }
         }
     }
 

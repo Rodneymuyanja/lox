@@ -13,7 +13,10 @@ namespace lox
     {
         private const int ERROR_BAD_ARGS = 0xa0;
         private const int SYNTAX_ERROR = 0xa1;
+        private const int RUNTIME_ERROR = 0xa2;
         private static bool had_error = false;
+        private static bool had_runtime_error = false;
+        private static Interpreter interpreter = new ();
         public static void Main()
         {
             Console.WriteLine("started lox");
@@ -43,6 +46,7 @@ namespace lox
             Run(file_content);
 
             if(had_error) Environment.Exit(SYNTAX_ERROR);
+            if (had_runtime_error) Environment.Exit(RUNTIME_ERROR);
         }
 
         private static void RunPrompt()
@@ -61,12 +65,16 @@ namespace lox
         private static void Run(string source_code)
         {
             Scanner scanner = new (source_code);
-            List<string> tokens = scanner.ScanTokens();
+            List<Token> tokens = scanner.ScanTokens();
+            Parser parser = new (tokens);
+            Expr expr = parser.Parse();
 
-            foreach (var token in tokens)
-            {
-                Console.WriteLine(token);
-            }
+            interpreter.Interpret(expr);
+
+            //foreach (var token in tokens)
+            //{
+            //    Console.WriteLine(token);
+            //}
         }
 
         public static void Error(int line, string message)
@@ -90,6 +98,13 @@ namespace lox
             }
 
             Report(token.line, $" at '{token.lexeme}' ", message);
+        }
+
+        public static void RuntimeError(RuntimeError error)
+        {
+            string error_message = $"{error.Message}\n[line {error.token.line}]";
+            Console.Error.WriteLine(error_message);
+            had_runtime_error = true;
         }
     }
 }

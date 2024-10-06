@@ -28,6 +28,18 @@ namespace lox.src
         //points to the NEXT token waiting to be read
         private int current = 0;
 
+        public Expr Parse()
+        {
+            try
+            {
+                return Expression();
+            }
+            catch (ParseError error)
+            {
+                return null!;
+            }
+        }
+
         internal Expr Expression()
         {
             return Equality();

@@ -12,7 +12,7 @@ namespace lox.src
         private int start = 0;
         //current line in the source code
         private int line = 1;
-        public List<string> ScanTokens()
+        public List<Token> ScanTokens()
         {
             while (!IsAtEnd())
             {
@@ -22,7 +22,7 @@ namespace lox.src
 
             tokens.Add(new Token(TokenType.EOF, "", null, line));
 
-            return [];
+            return tokens;
         }
 
         private void ScanToken()

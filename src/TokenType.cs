@@ -1,7 +1,7 @@
 ﻿
 namespace lox.src
 {
-    enum TokenType
+    public enum TokenType
     {
         //single char tokens
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
