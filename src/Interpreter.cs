@@ -26,10 +26,12 @@ namespace lox.src
                     {
                         return (double)left + (double)right;
                     }
-                    if(left is String && right is String)
+
+                    if(CheckAnyString(left,right))
                     {
                         return $"{left}{right}";
                     }
+
                     throw new RuntimeError(expr.__operator,"Expected numbers or strings");
 
                 case TokenType.MINUS:
@@ -42,6 +44,9 @@ namespace lox.src
 
                 case TokenType.SLASH:
                     CheckNumberOperands(expr.__operator, left, right);
+                    //catch Zero division
+                    if ((double)right == 0) throw new RuntimeError(expr.__operator, "Zero Division");
+
                     return (double)left / (double)right;
 
                 case TokenType.GREATER:
@@ -93,6 +98,16 @@ namespace lox.src
                 default:
                     return null!;
             }
+        }
+
+        private bool CheckAnyString(Object left, Object right)
+        {
+            if(left is String || right is String)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         //this method helps us recurse the tree
