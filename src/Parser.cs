@@ -28,17 +28,38 @@ namespace lox.src
         //points to the NEXT token waiting to be read
         private int current = 0;
 
-        public Expr Parse()
+        public List<Stmt> Parse()
         {
-            try
+            List<Stmt> statements = [];
+            while (!IsAtEnd())
             {
-                return Expression();
+                statements.Add(Statement());
             }
-            catch (ParseError)
-            {
-                return null!;
-            }
+            return statements;
         }
+
+        private Stmt Statement()
+        {
+            if (Match([TokenType.PRINT])) return PrintStatement();
+
+            return ExpressionStatement();
+        }
+
+        private Stmt PrintStatement()
+        {
+            Expr value = Expression();
+            Consume(TokenType.SEMICOLON, "Expected ';' at the end of a print statement");
+            return new Stmt.Print(value);
+        }
+
+        private Stmt ExpressionStatement()
+        {
+            Expr expr = Expression();
+            Consume(TokenType.SEMICOLON, "Expected ';' at the end of a expression statement");
+            return new Stmt.Expression(expr);
+        }
+
+        
 
         internal Expr Expression()
         {

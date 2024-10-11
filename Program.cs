@@ -2,6 +2,7 @@
 using lox.src;
 using lox;
 using System.Text;
+using System.Collections.Generic;
 
 string[] args_ = Environment.GetCommandLineArgs();
 Console.WriteLine(args_);
@@ -67,9 +68,11 @@ namespace lox
             Scanner scanner = new (source_code);
             List<Token> tokens = scanner.ScanTokens();
             Parser parser = new (tokens);
-            Expr expr = parser.Parse();
+            List<Stmt> statements = parser.Parse();
 
-            interpreter.Interpret(expr);
+            
+
+            interpreter.Interpret(statements);
 
             //foreach (var token in tokens)
             //{

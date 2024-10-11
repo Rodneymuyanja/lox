@@ -1,20 +1,36 @@
 ﻿using lox.src.Interfaces;
 namespace lox.src
 {
-    public class Interpreter : IVisitor<object>
+    public class Interpreter : Expr.IVisitor<object>, Stmt.IVisitor<object>
     {
-        public void Interpret(Expr expr)
+        public void Interpret(List<Stmt> statements)
         {
             try
             {
-                Object value = Evaluate(expr);
-                Console.WriteLine(Stringify(value));
-            }
-            catch (RuntimeError r)
+                foreach (Stmt stmt in statements)
+                {
+                    Execute(stmt);
+                }
+            }catch(RuntimeError r)
             {
                 Lox.RuntimeError(r);
             }
         }
+
+
+        public object VisitExpressionStmt(Stmt.Expression stmt)
+        {
+            Evaluate(stmt.expression);
+            return null!;
+        }
+
+        public object VisitPrintStmt(Stmt.Print stmt)
+        {
+            object value = Evaluate(stmt.expression);
+            Console.WriteLine(Stringify(value));
+            return null!;
+        }
+
         public object VisitBinaryExpr(Expr.Binary expr)
         {
             object left = Evaluate(expr.left);
@@ -164,6 +180,11 @@ namespace lox.src
             }
 
             return obj.ToString()!;
+        }
+
+        private void Execute(Stmt stmt)
+        {
+            stmt.Accept(this);
         }
     }
 }

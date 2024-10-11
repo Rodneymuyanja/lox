@@ -1,11 +1,18 @@
 ﻿
-
 using lox.src.Interfaces;
 
 namespace lox.src
 {
     public abstract class Expr
     {
+        public interface IVisitor<T>
+        {
+            public T VisitLiteralExpr(Expr.Literal expr);
+            public T VisitGroupExpr(Expr.Grouping expr);
+            public T VisitUnaryExpr(Expr.Unary expr);
+            public T VisitBinaryExpr(Expr.Binary expr);
+        }
+
         public abstract T Accept <T>(IVisitor<T> visitor);
         public class Binary(Expr _left, Token _operator, Expr _right) : Expr
         {
