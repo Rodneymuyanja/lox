@@ -1,4 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using System.Reflection.Metadata;
+
 namespace lox.src
 {
     internal class Scanner(string _source_code)
@@ -88,12 +90,16 @@ namespace lox.src
                     if (IsDigit(c))
                     {
                         Number();
+                        break;
                     }
-                    else 
+
+                    if (IsAlpha(c))
                     {
-                        Lox.Error(line, "Unexpected character");
+                        Identifier();
+                        break;
                     }
                     
+                    Lox.Error(line, "Unexpected character");
                     break;
             }
         }
@@ -192,6 +198,25 @@ namespace lox.src
         private bool IsAtEnd()
         {
             return current >= source_code.Length;
+        }
+
+        //character
+        private static bool IsAlpha(char c)
+        {
+            return (c >= 'A' && c <= 'Z')||
+                (c >= 'a' && c <= 'z') ||
+                c == '_';
+        }
+        private bool IsAlphaNumeric(char c)
+        {
+            return IsAlpha(c) || IsDigit(c);
+        }
+
+        private void Identifier()
+        {
+            while (IsAlphaNumeric(Peek())) Advance();
+
+            AddToken(TokenType.IDENTIFIER);
         }
     }
 }

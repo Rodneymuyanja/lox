@@ -6,7 +6,14 @@ namespace lox.src
     /// the parser
     /// first of all the grammar
     /// 
-    /// expression -> equality;
+    /// program -> declaration* EOF;
+    /// declaration -> vardecl | statement;
+    /// statement -> printStatement | expressionStatement | block;
+    /// block -> "{" declaration* "}";
+    /// printStatement -> "print" expression ";"
+    /// expressionStatement -> expression;
+    /// expression -> assignment;
+    /// assignment -> IDENTIFIER "=" assignment | equality;
     /// equality -> comparison (('==' | '!=') comparison)*;
     /// comparison -> term(('<' | '<=' | '>' | '>=') term)*;
     /// term -> factor (( '+' | '-' ) factor)*;
@@ -33,14 +40,44 @@ namespace lox.src
             List<Stmt> statements = [];
             while (!IsAtEnd())
             {
-                statements.Add(Statement());
+                statements.Add(Declaration());
             }
             return statements;
+        }
+
+
+        private List<Stmt> Block()
+        {
+            List<Stmt> statements = [];
+            while (!Check(TokenType.RIGHT_BRACE) && !IsAtEnd())
+            {
+                statements.Add(Declaration());   
+            }
+
+            Consume(TokenType.RIGHT_BRACE, "Expected '}'");
+            return statements;
+        }
+
+        //declaration -> vardecl | statement
+        private Stmt Declaration()
+        {
+            try
+            {
+                if (Match([TokenType.VAR])) return VarDeclaration();
+
+                return Statement();
+            }
+            catch (ParseError)
+            {
+                Synchronize();
+                return null!;
+            }
         }
 
         private Stmt Statement()
         {
             if (Match([TokenType.PRINT])) return PrintStatement();
+            if (Match([TokenType.LEFT_BRACE])) return new Stmt.Block(Block());
 
             return ExpressionStatement();
         }
@@ -59,11 +96,44 @@ namespace lox.src
             return new Stmt.Expression(expr);
         }
 
-        
+        //assignment -> IDENTIFIER "=" assignment | equality;
+        private Expr Assignment()
+        {
+            Expr expr = Equality();
+
+            if (Match([TokenType.EQUAL]))
+            {
+                Token equals = Previous();
+                Expr value = Assignment();
+
+                if(expr is Expr.Variable v)
+                {
+                    Token name = v.name;
+                    return new Expr.Assign(name, value);    
+                }
+
+                Error(equals, "Invalid assignment target");
+            }
+
+            return expr;
+        }
+
+        //varDecl -> "var" IDENTIFIER ("=" expression)? ";";
+        private Stmt VarDeclaration()
+        {
+            Token name = Consume(TokenType.IDENTIFIER, "Expected an identifier");
+            Expr identifier = null!;
+            if (Match([TokenType.EQUAL])) { 
+                identifier = Expression();
+            }
+
+            Consume(TokenType.SEMICOLON, "Expected ';' after variable declaration");
+            return new Stmt.Var(name, identifier);
+        }
 
         internal Expr Expression()
         {
-            return Equality();
+            return Assignment();
         }
 
         //equality -> comparison (('==' | '!=') comparison)*;
@@ -93,6 +163,7 @@ namespace lox.src
 
             return expr;
         }
+
         //term -> factor (( '+' | '-' ) factor)*;
         internal Expr Term()
         {
@@ -133,12 +204,10 @@ namespace lox.src
                 Expr right = Unary();
                 return new Expr.Unary(op, right);
             }
-
             return Primary();
         }
 
         //primary -> NUMBER | STRING | 'false' | 'true' | 'nil' | '(' expression ')';
-
         internal Expr Primary()
         {
             if (Match([TokenType.FALSE])) return new Expr.Literal(false);
@@ -149,6 +218,10 @@ namespace lox.src
                 return new Expr.Literal(Previous().literal);
             }
 
+            if (Match([TokenType.IDENTIFIER]))
+            {
+                return new Expr.Variable(Previous());
+            }
             if (Match([TokenType.LEFT_PAREN]))
             {
                 Expr expr = Expression();
@@ -168,7 +241,6 @@ namespace lox.src
             throw Error(Peek(), message);
         }
         
-       
         //gets the previous token
         //the one behind current
         private Token Previous()

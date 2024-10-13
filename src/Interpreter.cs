@@ -1,8 +1,9 @@
-﻿using lox.src.Interfaces;
+﻿
 namespace lox.src
 {
     public class Interpreter : Expr.IVisitor<object>, Stmt.IVisitor<object>
     {
+        private LoxEnvironment env = new ();
         public void Interpret(List<Stmt> statements)
         {
             try
@@ -16,7 +17,6 @@ namespace lox.src
                 Lox.RuntimeError(r);
             }
         }
-
 
         public object VisitExpressionStmt(Stmt.Expression stmt)
         {
@@ -116,6 +116,24 @@ namespace lox.src
             }
         }
 
+        public object VisitVariableExpr(Expr.Variable expr)
+        {
+            return env.Get(expr.name);
+        }
+
+        public object VisitVarStmt(Stmt.Var stmt)
+        {
+            //lox variables are implicitly NULL
+            object value = null!;
+            if (stmt.initializer is not null)
+            {
+                value = Evaluate(stmt.initializer);
+            }
+
+            env.Define(stmt.name.lexeme, value);
+            return null!;
+        }
+
         private bool CheckAnyString(Object left, Object right)
         {
             if(left is String || right is String)
@@ -185,6 +203,36 @@ namespace lox.src
         private void Execute(Stmt stmt)
         {
             stmt.Accept(this);
+        }
+
+        public object VisitAssignmentExpr(Expr.Assign expr)
+        {
+            object value = Evaluate(expr.value);
+            env.Assign(expr.name, value);
+            return value;
+        }
+
+        public object VisitBlock(Stmt.Block stmt)
+        {
+            ExecuteBlock(stmt.statements, new LoxEnvironment(env));
+            return null!;
+        }
+
+        private void ExecuteBlock(List<Stmt> statements, LoxEnvironment enclosing)
+        {
+            LoxEnvironment previous_env = this.env;
+            try
+            {
+                env = enclosing;
+                foreach (var statement in statements)
+                {
+                    Execute(statement);
+                }
+            }
+            finally
+            {
+                this.env = previous_env;
+            }
         }
     }
 }

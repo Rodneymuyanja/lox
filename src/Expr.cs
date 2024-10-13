@@ -1,5 +1,4 @@
-﻿
-using lox.src.Interfaces;
+﻿using lox.src.Interfaces;
 
 namespace lox.src
 {
@@ -11,6 +10,8 @@ namespace lox.src
             public T VisitGroupExpr(Expr.Grouping expr);
             public T VisitUnaryExpr(Expr.Unary expr);
             public T VisitBinaryExpr(Expr.Binary expr);
+            public T VisitVariableExpr(Expr.Variable expr); 
+            public T VisitAssignmentExpr(Expr.Assign expr); 
         }
 
         public abstract T Accept <T>(IVisitor<T> visitor);
@@ -53,6 +54,26 @@ namespace lox.src
                 return visitor.VisitUnaryExpr(this);
             }
         }
-    }
 
+        public class Variable(Token _name) : Expr
+        {
+            public Token name = _name;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitVariableExpr(this);
+            }
+        }
+
+        public class Assign(Token _name, Expr _value) : Expr
+        {
+            public Token name = _name;
+            public Expr value = _value;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitAssignmentExpr(this);
+            }
+        }
+    }
 }

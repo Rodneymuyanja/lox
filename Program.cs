@@ -2,7 +2,6 @@
 using lox.src;
 using lox;
 using System.Text;
-using System.Collections.Generic;
 
 string[] args_ = Environment.GetCommandLineArgs();
 Console.WriteLine(args_);
@@ -17,7 +16,7 @@ namespace lox
         private const int RUNTIME_ERROR = 0xa2;
         private static bool had_error = false;
         private static bool had_runtime_error = false;
-        private static Interpreter interpreter = new ();
+        private static readonly Interpreter interpreter = new ();
         public static void Main()
         {
             Console.WriteLine("started lox");
@@ -29,14 +28,14 @@ namespace lox
                 Environment.ExitCode = ERROR_BAD_ARGS;
             }
 
-            if (args.Length > 1)
+            if (args.Length == 1)
             {
                 RunPrompt();
             }
 
-            if(args.Length == 1)
+            if(args.Length == 2)
             {
-                RunFile(args[0]);
+                RunFile(args[1]);
             }
         }
 
@@ -54,7 +53,7 @@ namespace lox
         {
             for(;;)
             {
-                Console.WriteLine("lox1.0>");
+                Console.Write("lox1.0>");
                 string input = Console.ReadLine()!;
                 if (string.IsNullOrEmpty(input)) break;
                 Run(input);
@@ -69,8 +68,6 @@ namespace lox
             List<Token> tokens = scanner.ScanTokens();
             Parser parser = new (tokens);
             List<Stmt> statements = parser.Parse();
-
-            
 
             interpreter.Interpret(statements);
 
