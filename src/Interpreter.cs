@@ -234,5 +234,53 @@ namespace lox.src
                 this.env = previous_env;
             }
         }
+
+        public object VisitIfStmt(Stmt.If stmt)
+        {
+            if (Truthy(Evaluate(stmt.condition)))
+            {
+                Execute(stmt.then_branch);
+
+            }
+            else if (stmt.else_branch is not null)
+            {
+                Execute(stmt.else_branch);
+            }
+            return null!;
+
+        }
+
+        public object VisitLogicalExpr(Expr.Logical expr)
+        {
+            object left = Evaluate(expr.left);
+
+            if(expr.op.token_type == TokenType.OR)
+            {
+                //or short circuits if 
+                //cuz it looks for any truth on the leaves
+                //so if the left node is true
+                //short-circuit and return it
+                if (Truthy(left)) return left;
+            }else if(expr.op.token_type == TokenType.AND)
+            {
+                //and only cares about trues and both need to be true
+                //so if any is false short-circuit
+                if (!Truthy(left)) return left;
+            }
+
+            //other wise evaluate the right node to
+            //see if its true 
+            return Evaluate(expr.right);
+        }
+
+        public object VisitWhileStmt(Stmt.While stmt)
+        {
+            if (Truthy(stmt.condition))
+            {
+                Execute(stmt.body);
+            }
+
+            return null!;
+        }
     }
 }

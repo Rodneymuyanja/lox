@@ -1,4 +1,6 @@
 ﻿
+using System.Reflection.Metadata;
+
 namespace lox.src
 {
     /// <summary>
@@ -6,20 +8,40 @@ namespace lox.src
     /// the parser
     /// first of all the grammar
     /// 
-    /// program -> declaration* EOF;
-    /// declaration -> vardecl | statement;
-    /// statement -> printStatement | expressionStatement | block;
-    /// block -> "{" declaration* "}";
-    /// printStatement -> "print" expression ";"
+    /// program             -> declaration* EOF;
+    /// declaration         -> vardecl | statement;
+    /// statement           -> printStatement 
+    ///                         | ifStatement 
+    ///                         | expressionStatement 
+    ///                         | whileStatement
+    ///                         | forStatement
+    ///                         | block;
+    /// block               -> "{" declaration* "}";
+    /// printStatement      -> "print" expression ";"
     /// expressionStatement -> expression;
-    /// expression -> assignment;
-    /// assignment -> IDENTIFIER "=" assignment | equality;
-    /// equality -> comparison (('==' | '!=') comparison)*;
-    /// comparison -> term(('<' | '<=' | '>' | '>=') term)*;
-    /// term -> factor (( '+' | '-' ) factor)*;
-    /// factor -> unary (('/' | '*') unary)*;
-    /// unary -> ('!' | '-') unary | primary;
-    /// primary -> NUMBER | STRING | 'false' | 'true' | 'nil' | '(' expression ')';
+    /// ifStatement         -> "if" "(" expression ")" statement
+    ///                         ( "else" statement )? ;
+    /// whileStatement      -> "while" "(" expression ")" statement;
+    /// forStatement        -> "for" "(" ( varDecl | expressionStatement ";" )
+    ///                         expression? ";"
+    ///                         expression? ")"
+    ///                         statement;
+    /// expression          -> assignment;
+    /// assignment          -> IDENTIFIER "=" assignment 
+    ///                        | logical_or;
+    /// logical_or          -> logical_and ("or" logical_and)*;
+    /// logical_and         -> equality ("and" equality)*;
+    /// equality            -> comparison (('==' | '!=') comparison)*;
+    /// comparison          -> term(('<' | '<=' | '>' | '>=') term)*;
+    /// term                -> factor (( '+' | '-' ) factor)*;
+    /// factor              -> unary (('/' | '*') unary)*;
+    /// unary               -> ('!' | '-') unary | primary;
+    /// primary             -> NUMBER 
+    ///                        | STRING 
+    ///                        | 'false' 
+    ///                        | 'true' 
+    ///                        | 'nil' 
+    ///                        | '(' expression ')';
     /// 
     /// 
     /// 
@@ -78,8 +100,45 @@ namespace lox.src
         {
             if (Match([TokenType.PRINT])) return PrintStatement();
             if (Match([TokenType.LEFT_BRACE])) return new Stmt.Block(Block());
+            if (Match([TokenType.IF])) return IfStatement();
+            if (Match([TokenType.WHILE])) return WhileStatement();
 
             return ExpressionStatement();
+        }
+
+        // whileStatement -> "while" "(" expression ")" statement;
+        private Stmt WhileStatement()
+        {
+            Consume(TokenType.LEFT_BRACE, "Expect '(' after while");
+            Expr condition = Expression();
+            Consume(TokenType.RIGHT_BRACE, "Expect ')' after expression in while loop");
+
+            Stmt body = Statement();
+
+            return new Stmt.While(condition, body); 
+        }
+
+        // ifStatement -> "if" "(" expression ")" statement
+        //                 ( "else" statement )? ;
+        private Stmt IfStatement()
+        {
+            Consume(TokenType.LEFT_BRACE, "Expect '(' after if");
+            Expr condition = Expression();
+            //this is the only reason we need braces actually
+            //to know when an expression ends
+            //the LEFT_BRACE is just for consistency
+            Consume(TokenType.RIGHT_BRACE, "Expect ')' after expression in if");
+
+            Stmt then_branch = Statement();
+
+            Stmt else_branch = null!;
+
+            if (Match([TokenType.ELSE]))
+            {
+                else_branch = Statement();
+            }
+
+            return new Stmt.If(condition, then_branch, else_branch);
         }
 
         private Stmt PrintStatement()
@@ -113,6 +172,36 @@ namespace lox.src
                 }
 
                 Error(equals, "Invalid assignment target");
+            }
+
+            return expr;
+        }
+
+        // logical_or -> logical_and ("or" logical_and)*;
+        private Expr Or()
+        {
+            Expr expr = And();
+
+            while (Match([TokenType.OR]))
+            {
+                Token op = Previous();
+                Expr right = Or();
+                expr = new Expr.Logical(expr,op,right);
+            }
+
+            return expr;
+        }
+
+        // logical_and -> equality ("and" equality)*;
+        private Expr And()
+        {
+            Expr expr = Equality();
+
+            while (Match([TokenType.AND]))
+            {
+                Token op = Previous();
+                Expr right = Equality();
+                expr = new Expr.Logical(expr, op, right);
             }
 
             return expr;
@@ -324,6 +413,93 @@ namespace lox.src
                         return;
                 }
             }
+        }
+
+        /// forStatement -> "for" "(" ( varDecl | expressionStatement ";" )
+        ///                  expression? ";"
+        ///                  expression? ")"
+        ///                  statement;
+        ///                  
+
+        ///we desugar for loops
+        ///
+        private Stmt ForStatement()
+        {
+            Consume(TokenType.LEFT_PAREN, "Expected '(' after for");
+
+            Stmt initializer;
+
+            //for(; ...
+            //not initializer
+            if (Match([TokenType.SEMICOLON]))
+            {
+                initializer = null!;
+            }
+            //for(var i = 0...
+            //variable declaration
+            else if( Match([TokenType.VAR]))
+            {
+                initializer = VarDeclaration();
+            }
+            //for(i = 0 ...
+            //expression statement
+            else
+            {
+                initializer = ExpressionStatement();
+            }
+
+            Expr condition = null!;
+            //for(var i = 0;;
+            if (!Check(TokenType.SEMICOLON))
+            {
+                //for(var i = 0; i < 10 ;
+                condition = Expression();
+            }
+
+            Consume(TokenType.SEMICOLON, "Expect ';' after condition");
+
+            Expr increment = null!;
+            //for(var i = 0; i < 10 ) ..no increment
+            if (!Check(TokenType.RIGHT_PAREN))
+            {
+                //for(var i = 0; i < 10 ; i = i + 1)
+                increment = Expression();
+            }
+
+            Consume(TokenType.RIGHT_PAREN, "Expected ')' to close for");
+
+            Stmt body = Statement();
+            if(increment is not null)
+            {
+                List<Stmt> body_bits = [];
+                body_bits.Add(body);
+                //the increment is attached to the body
+                //and executed at the end of each block
+                body_bits.Add(new Stmt.Expression(increment));
+
+                body = new Stmt.Block(body_bits);
+            }
+
+            //if the condition is not specified
+            //we go to infinity
+            condition ??= new Expr.Literal(true);
+
+            //this is where we desugar the for loop to
+            //a while loop
+            body = new Stmt.While(condition, body);
+
+            if(initializer is not null)
+            {
+                List<Stmt> body_bits2 = [];
+                //make the initializer part of the body
+                //it should be executed once
+                body_bits2.Add(initializer);
+                body_bits2.Add(body);
+                body = new Stmt.Block(body_bits2);
+            }
+
+            //interpreter receives a Block tree
+            return body;
         }
     }
 }

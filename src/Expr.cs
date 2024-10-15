@@ -12,6 +12,7 @@ namespace lox.src
             public T VisitBinaryExpr(Expr.Binary expr);
             public T VisitVariableExpr(Expr.Variable expr); 
             public T VisitAssignmentExpr(Expr.Assign expr); 
+            public T VisitLogicalExpr(Expr.Logical expr);   
         }
 
         public abstract T Accept <T>(IVisitor<T> visitor);
@@ -73,6 +74,18 @@ namespace lox.src
             public override T Accept<T>(IVisitor<T> visitor)
             {
                 return visitor.VisitAssignmentExpr(this);
+            }
+        }
+
+        public class Logical(Expr _left, Token _operator, Expr _right) : Expr
+        {
+            public Expr left = _left;
+            public Token op = _operator;
+            public Expr right = _right;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitLogicalExpr(this);
             }
         }
     }
