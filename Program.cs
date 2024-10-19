@@ -22,21 +22,23 @@ namespace lox
             Console.WriteLine("started lox");
             string[] args = Environment.GetCommandLineArgs();
 
-            Console.WriteLine("args {0}", string.Join(',',args));
-            if (args.Length > 2)
-            {
-                Environment.ExitCode = ERROR_BAD_ARGS;
-            }
+            //Console.WriteLine("args {0}", string.Join(',',args));
+            //if (args.Length > 2)
+            //{
+            //    Environment.ExitCode = ERROR_BAD_ARGS;
+            //}
 
-            if (args.Length == 1)
-            {
-                RunPrompt();
-            }
+            //if (args.Length == 1)
+            //{
+            //    RunPrompt();
+            //}
 
-            if(args.Length == 2)
+            if (args.Length == 2)
             {
                 RunFile(args[1]);
             }
+
+            //RunFile(@"C:\disk_d\Programming stuff\#lox\tools_outputs\loxtest.lox");
         }
 
         private static void RunFile(string path)

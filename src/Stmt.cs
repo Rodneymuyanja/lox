@@ -11,6 +11,8 @@ namespace lox.src
             public T VisitBlock(Stmt.Block stmt);
             public T VisitIfStmt(Stmt.If stmt);
             public T VisitWhileStmt(Stmt.While stmt);
+            public T VisitFunctionStmt(Stmt.Function stmt);
+            public T VisitReturnStmt(Stmt.Return stmt);
         }
 
         public abstract T Accept<T>(Stmt.IVisitor<T> visitor);
@@ -73,6 +75,29 @@ namespace lox.src
             public override T Accept<T>(IVisitor<T> visitor)
             {
                 return visitor.VisitWhileStmt(this);
+            }
+        }
+
+        public class Function(Token _name, List<Token> _parameters, List<Stmt> _body) : Stmt
+        {
+            public Token name = _name;
+            public List<Token> parameters = _parameters;
+            public List<Stmt> body = _body;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitFunctionStmt(this);
+            }
+        }
+
+        public class Return(Token _Keyword, Expr _value) : Stmt
+        {
+            public Token Keyword = _Keyword;
+            public Expr value = _value;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitReturnStmt(this);
             }
         }
     }

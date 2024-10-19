@@ -1,11 +1,16 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using System;
 using System.Reflection.Metadata;
+using System.Security.Claims;
+using System.Text;
+using static lox.src.Stmt;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace lox.src
 {
-    internal class Scanner(string _source_code)
+    internal class Scanner
     {
-        private readonly string source_code = _source_code;
+        private readonly string source_code ;
         private List<Token> tokens = [];
 
         //current lexeme being considered
@@ -14,6 +19,34 @@ namespace lox.src
         private int start = 0;
         //current line in the source code
         private int line = 1;
+
+        private Dictionary<string, TokenType> keywords = [];
+        
+        public Scanner(string _source_code)
+        {
+            source_code = _source_code;
+            LoadKeywords();
+        }
+
+        private void LoadKeywords()
+        {
+            keywords.Add("and", TokenType.AND);
+            keywords.Add("class", TokenType.CLASS);
+            keywords.Add("else", TokenType.ELSE);
+            keywords.Add("false", TokenType.FALSE);
+            keywords.Add("for", TokenType.FOR);
+            keywords.Add("fun", TokenType.FUN);
+            keywords.Add("if", TokenType.IF);
+            keywords.Add("nil", TokenType.NIL);
+            keywords.Add("or", TokenType.OR);
+            keywords.Add("print", TokenType.PRINT);
+            keywords.Add("return", TokenType.RETURN);
+            keywords.Add("super", TokenType.SUPER);
+            keywords.Add("this", TokenType.THIS);
+            keywords.Add("true", TokenType.TRUE);
+            keywords.Add("var", TokenType.VAR);
+            keywords.Add("while", TokenType.WHILE);
+        }
         public List<Token> ScanTokens()
         {
             while (!IsAtEnd())
@@ -110,10 +143,27 @@ namespace lox.src
         }
         private void AddToken(TokenType token_type, object? literal)
         {
-            string text = source_code.Substring(start, current);
+            //string text = source_code.Substring(start, current);
+            string text = ExtractString(start, current);
             tokens.Add(new Token(token_type,text, literal,line));
         }
 
+        private string ExtractString(int start, int end)
+        {
+            StringBuilder stringbuilder = new();
+            int offset = start;
+            char c;
+
+            while (offset != end)
+            {
+                c = source_code[offset];
+                stringbuilder.Append(c);
+                offset++;
+            }
+
+            string str = stringbuilder.ToString();
+            return str.Trim('\"');
+        }
         private void String()
         {
             while(Peek() != '"' && !IsAtEnd())
@@ -129,8 +179,25 @@ namespace lox.src
 
             //at this point we have the closing "
             Advance();
+            //string value_in_quotes = source_code.Substring(start + 1, current - 1);
+            
 
-            string value_in_quotes = source_code.Substring(start + 1, current - 1);
+            //StringBuilder stringbuilder = new();
+            ////get the first character
+
+            //int offset = start + 1;
+            //char c = source_code[offset];
+
+            //while (c != '\"')
+            //{
+            //    c = source_code[offset];
+            //    if (c == '\"') break;
+            //    stringbuilder.Append(c);
+            //    offset++;
+            //}
+
+            string value_in_quotes = ExtractString(start+1, current-1);
+
             AddToken(TokenType.STRING,value_in_quotes);
         }
 
@@ -151,7 +218,7 @@ namespace lox.src
             }
 
             //then extrapolate from the start to where we are 
-            string value = source_code.Substring(start, current);
+            string value = ExtractString(start,current);
             AddToken(TokenType.NUMBER,Double.Parse(value));
         }
         private bool IsDigit(char c)
@@ -215,6 +282,13 @@ namespace lox.src
         private void Identifier()
         {
             while (IsAlphaNumeric(Peek())) Advance();
+
+            string text = ExtractString(start, current);
+            if (keywords.TryGetValue(text,out TokenType token_type))
+            {
+                AddToken(token_type);
+                return;
+            }
 
             AddToken(TokenType.IDENTIFIER);
         }

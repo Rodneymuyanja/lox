@@ -1,6 +1,4 @@
 ﻿
-using System.Reflection.Metadata;
-
 namespace lox.src
 {
     /// <summary>
@@ -9,13 +7,19 @@ namespace lox.src
     /// first of all the grammar
     /// 
     /// program             -> declaration* EOF;
-    /// declaration         -> vardecl | statement;
+    /// declaration         -> vardecl 
+    ///                         | statement
+    ///                         | funDecl;
+    /// funDecl             -> "fun" IDENTIFIER "(" parameters? ")" block;
+    /// parameters          -> IDENTIFIER ("," IDENTIFIER)*;
     /// statement           -> printStatement 
     ///                         | ifStatement 
     ///                         | expressionStatement 
     ///                         | whileStatement
     ///                         | forStatement
-    ///                         | block;
+    ///                         | block
+    ///                         | returnStatement;
+    /// returnStatement     -> "return" expression? ";"
     /// block               -> "{" declaration* "}";
     /// printStatement      -> "print" expression ";"
     /// expressionStatement -> expression;
@@ -35,7 +39,9 @@ namespace lox.src
     /// comparison          -> term(('<' | '<=' | '>' | '>=') term)*;
     /// term                -> factor (( '+' | '-' ) factor)*;
     /// factor              -> unary (('/' | '*') unary)*;
-    /// unary               -> ('!' | '-') unary | primary;
+    /// unary               -> ('!' | '-') unary | call;
+    /// call                -> primary("(" arguments? ")")*;
+    /// arguments           -> expression ("," expression)*;
     /// primary             -> NUMBER 
     ///                        | STRING 
     ///                        | 'false' 
@@ -56,6 +62,7 @@ namespace lox.src
         private List<Token> tokens = _tokens;
         //points to the NEXT token waiting to be read
         private int current = 0;
+        private const int MAX_ARGS_LENGTH = 255;
 
         public List<Stmt> Parse()
         {
@@ -102,8 +109,91 @@ namespace lox.src
             if (Match([TokenType.LEFT_BRACE])) return new Stmt.Block(Block());
             if (Match([TokenType.IF])) return IfStatement();
             if (Match([TokenType.WHILE])) return WhileStatement();
+            if (Match([TokenType.FUN])) return Function();
+            if (Match([TokenType.RETURN])) return ReturnStatement();
 
             return ExpressionStatement();
+        }
+
+        // returnStatement     -> "return" expression? ";"
+
+        private Stmt ReturnStatement()
+        {
+            Token keyword = Previous();
+            Expr value = null!;
+            if (!Check(TokenType.SEMICOLON))
+            {
+                value = Expression();
+            }
+            Consume(TokenType.SEMICOLON, "Expected ';' after return statement");
+            return new Stmt.Return(keyword, value);
+        }
+
+        // funDecl -> IDENTIFIER "(" parameters? ")" block;
+        private Stmt.Function Function()
+        {
+            Token name = Consume(TokenType.IDENTIFIER, "Expected function name");
+            Consume(TokenType.LEFT_PAREN, "Expected '(' after function declaration");
+            List<Token> parameters = [];
+
+            //this is how we cater for zero params
+            if (!Check(TokenType.RIGHT_PAREN))
+            {
+                do
+                {
+                    if(parameters.Count >= MAX_ARGS_LENGTH)
+                    {
+                        Error(Peek(), "Too many parameters");
+                    }
+
+                    parameters.Add(Consume(TokenType.IDENTIFIER,"Expected parameter name"));
+
+                } while (Match([TokenType.COMMA]));
+            }
+
+            Consume(TokenType.RIGHT_PAREN, "Expected ')' after parameter list");
+            Consume(TokenType.LEFT_BRACE, "Expected '{' after function declaration");
+            List<Stmt> stmts = Block();
+            return new Stmt.Function(name,parameters, stmts);
+        }
+
+        // call -> primary("(" arguments? ")")*;
+        private Expr Call()
+        {
+            Expr expr = Primary();
+            while (true)
+            {
+                if (Match([TokenType.LEFT_PAREN]))
+                {
+                    expr = FinishCall(expr);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return expr;
+        }
+
+        private Expr FinishCall(Expr callee)
+        {
+            List<Expr> args = [];
+            if (!Check(TokenType.RIGHT_PAREN))
+            {
+                do
+                {
+                    if(args.Count >= MAX_ARGS_LENGTH)
+                    {
+                        Error(Peek(), "Too many arguments");
+                    }
+                    args.Add(Expression());
+                } while (Match([TokenType.COMMA]));
+            }
+
+            Token paren = Consume(TokenType.RIGHT_PAREN, "Expected ')' after arguments");
+
+            return new Expr.Call(callee,paren,args);
         }
 
         // whileStatement -> "while" "(" expression ")" statement;
@@ -122,12 +212,12 @@ namespace lox.src
         //                 ( "else" statement )? ;
         private Stmt IfStatement()
         {
-            Consume(TokenType.LEFT_BRACE, "Expect '(' after if");
+            Consume(TokenType.LEFT_PAREN, "Expect '(' after if");
             Expr condition = Expression();
             //this is the only reason we need braces actually
             //to know when an expression ends
             //the LEFT_BRACE is just for consistency
-            Consume(TokenType.RIGHT_BRACE, "Expect ')' after expression in if");
+            Consume(TokenType.RIGHT_PAREN, "Expect ')' after expression in if");
 
             Stmt then_branch = Statement();
 
@@ -293,7 +383,7 @@ namespace lox.src
                 Expr right = Unary();
                 return new Expr.Unary(op, right);
             }
-            return Primary();
+            return Call();
         }
 
         //primary -> NUMBER | STRING | 'false' | 'true' | 'nil' | '(' expression ')';

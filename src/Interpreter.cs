@@ -1,9 +1,19 @@
 ﻿
+using lox.src.Interfaces;
+using lox.src.NativeFunctions;
+
 namespace lox.src
 {
     public class Interpreter : Expr.IVisitor<object>, Stmt.IVisitor<object>
     {
-        private LoxEnvironment env = new ();
+        static LoxEnvironment globals = new();
+        private static LoxEnvironment? env = globals;
+
+        public Interpreter() {
+            ILoxCallable clock = new Clock();
+            globals.Define("clock", clock);
+        }
+       
         public void Interpret(List<Stmt> statements)
         {
             try
@@ -218,9 +228,9 @@ namespace lox.src
             return null!;
         }
 
-        private void ExecuteBlock(List<Stmt> statements, LoxEnvironment enclosing)
+        public void ExecuteBlock(List<Stmt> statements, LoxEnvironment enclosing)
         {
-            LoxEnvironment previous_env = this.env;
+            LoxEnvironment previous_env = env!;
             try
             {
                 env = enclosing;
@@ -231,7 +241,7 @@ namespace lox.src
             }
             finally
             {
-                this.env = previous_env;
+                env = previous_env;
             }
         }
 
@@ -281,6 +291,47 @@ namespace lox.src
             }
 
             return null!;
+        }
+
+        public object VisitCallExpr(Expr.Call expr)
+        {
+            object callee = Evaluate(expr.callee);
+            List<object> args = [];
+            foreach (var arg in expr.arguments)
+            {
+                args.Add(Evaluate(arg));
+            }
+
+            if(callee is not ILoxCallable)
+            {
+                throw new RuntimeError(expr.paren, "Can only call functions and classes");
+            }
+
+            ILoxCallable function = (ILoxCallable) callee;  
+            if(args.Count > function.Arity())
+            {
+                throw new RuntimeError(expr.paren, $"Expected {args.Count} but got {function.Arity()}");
+            }
+
+            return function.Call(this, args);  
+        }
+
+        public object VisitFunctionStmt(Stmt.Function stmt)
+        {
+            LoxFunction function = new(stmt, env!);
+            //the function is define in the current scope
+            env!.Define(stmt.name.lexeme,function);
+            return null!;
+        }
+
+        public object VisitReturnStmt(Stmt.Return stmt)
+        {
+            object value = null!;
+            if(stmt.value != null)
+            {
+                value = Evaluate(stmt.value);
+            }
+            throw new Return(value!);
         }
     }
 }

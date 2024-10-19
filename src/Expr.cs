@@ -12,7 +12,8 @@ namespace lox.src
             public T VisitBinaryExpr(Expr.Binary expr);
             public T VisitVariableExpr(Expr.Variable expr); 
             public T VisitAssignmentExpr(Expr.Assign expr); 
-            public T VisitLogicalExpr(Expr.Logical expr);   
+            public T VisitLogicalExpr(Expr.Logical expr);
+            public T VisitCallExpr(Expr.Call expr);
         }
 
         public abstract T Accept <T>(IVisitor<T> visitor);
@@ -86,6 +87,18 @@ namespace lox.src
             public override T Accept<T>(IVisitor<T> visitor)
             {
                 return visitor.VisitLogicalExpr(this);
+            }
+        }
+
+        public class Call(Expr _callee, Token _paren, List<Expr> _arguments) : Expr
+        {
+            public Expr callee = _callee;
+            public Token paren = _paren;
+            public List<Expr> arguments = _arguments;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitCallExpr(this);
             }
         }
     }
