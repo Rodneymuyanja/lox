@@ -1,6 +1,4 @@
 ﻿
-using System.Runtime.CompilerServices;
-
 namespace lox.src
 {
     public class LoxEnvironment
@@ -65,10 +63,8 @@ namespace lox.src
 
         public void AssignAt(int distance, Token name, object value)
         {
-            var values =Ancestor(distance).values;
+            var values = Ancestor(distance).values;
             values[name.lexeme] = value;
         }
     }
-
-   
 }

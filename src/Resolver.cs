@@ -1,11 +1,16 @@
 ﻿
-
 namespace lox.src
 {
     internal class Resolver(Interpreter _interpreter) : Stmt.IVisitor<Object>, Expr.IVisitor<Object>
     {
         private readonly Interpreter interpreter = _interpreter;
         private Stack<Dictionary<string,bool>> scopes = new ();
+        private FunctionType current_function_type = FunctionType.NONE;
+        private enum FunctionType
+        {
+            NONE,
+            FUNCTION
+        }
 
         private void Resolve(Stmt stmt)
         {
@@ -25,7 +30,7 @@ namespace lox.src
             scopes.Pop();
         }
 
-        private void Resolve(List<Stmt> stmts) 
+        public void Resolve(List<Stmt> stmts) 
         { 
             foreach (Stmt stmt in stmts)
             {
@@ -37,6 +42,10 @@ namespace lox.src
         {
             if (scopes.Count == 0) return;
             Dictionary<string, bool> scope = scopes.Peek();
+            if (scope.ContainsKey(name.lexeme))
+            {
+                Lox.Error(name, "Variable already exists in this scope with this name");
+            }
             //we have declared the variable but it's not
             //ready, hence the false
             scope.Add(name.lexeme, false);
@@ -86,14 +95,12 @@ namespace lox.src
         public object VisitCallExpr(Expr.Call expr)
         {
             Resolve(expr.callee);
-
             foreach (var arg in expr.arguments)
             {
                 Resolve(arg);
             }
 
             return null!;
-
         }
 
         public object VisitExpressionStmt(Stmt.Expression stmt)
@@ -106,19 +113,23 @@ namespace lox.src
         {
             Declare(stmt.name);
             Define(stmt.name);
-            ResolveFunction(stmt);
+            ResolveFunction(stmt, FunctionType.FUNCTION);
             return null!;
         }
 
-        private void ResolveFunction(Stmt.Function stmt) 
+        private void ResolveFunction(Stmt.Function stmt, FunctionType function_type) 
         {
             BeginScope();
+            FunctionType enclosing_function_type = current_function_type;
+
+            current_function_type = function_type;
             foreach (var token in stmt.parameters)
             {
                 Declare(token);
                 Define(token);
             }
             EndScope();
+            current_function_type = enclosing_function_type;
         }
 
         public object VisitGroupExpr(Expr.Grouping expr)
@@ -202,5 +213,4 @@ namespace lox.src
             return null!;
         }
     }
-
 }

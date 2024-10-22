@@ -8,7 +8,7 @@ namespace lox.src
     {
         static LoxEnvironment globals = new();
         private static LoxEnvironment? env = globals;
-        private Dictionary<Expr, Int32> locals = new();
+        private Dictionary<Expr, Int32> locals = [];
 
         public void Resolve(Expr expr, int depth)
         {
@@ -152,9 +152,13 @@ namespace lox.src
 
         private object LookUpVariable(Token name, Expr expr)
         {
-            Int32 distance = locals.get(expr);
-            if 
+            Int32? distance = locals.get(expr);
+            if (distance is not null)
+            {
+                return env!.GetAt(distance.Value, name.lexeme);
+            }
 
+            return globals.Get(name);
         }
         private bool CheckAnyString(Object left, Object right)
         {
@@ -213,7 +217,7 @@ namespace lox.src
                 String text = number.ToString();
                 if (text.EndsWith(".0"))
                 {
-                    text = text.Substring(0, text.Length - 2);
+                    text = text[..^2];
                 }
 
                 return text;
@@ -230,6 +234,17 @@ namespace lox.src
         public object VisitAssignmentExpr(Expr.Assign expr)
         {
             object value = Evaluate(expr.value);
+
+            Int32? distance = locals.get(expr);
+            if(distance is not null)
+            {
+                env!.AssignAt(distance.Value, expr.name, value);
+            }
+            else
+            {
+                globals.Assign(expr.name, value);   
+            }
+
             env!.Assign(expr.name, value);
             return value;
         }

@@ -78,6 +78,9 @@ namespace lox
 
             List<Stmt> statements = parser.Parse();
 
+            Resolver resolve = new (interpreter);
+            resolve.Resolve(statements);
+
             interpreter.Interpret(statements);
 
             //foreach (var token in tokens)
