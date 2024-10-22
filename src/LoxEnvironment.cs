@@ -1,4 +1,6 @@
 ﻿
+using System.Runtime.CompilerServices;
+
 namespace lox.src
 {
     public class LoxEnvironment
@@ -42,5 +44,31 @@ namespace lox.src
 
             values[name.lexeme] = value;
         }
+
+        public LoxEnvironment Ancestor(int distance)
+        {
+            LoxEnvironment env = this;
+            for (int i = 0; i < distance; i++)
+            {
+                env = env._enclosing!;
+            }
+
+            return env;
+        }
+
+        public object GetAt(int distance, string name)
+        {
+            //i just think this looks cleaner than
+            //values[key]
+            return Ancestor(distance).values.get(name);    
+        }
+
+        public void AssignAt(int distance, Token name, object value)
+        {
+            var values =Ancestor(distance).values;
+            values[name.lexeme] = value;
+        }
     }
+
+   
 }

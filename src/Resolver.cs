@@ -1,0 +1,206 @@
+﻿
+
+namespace lox.src
+{
+    internal class Resolver(Interpreter _interpreter) : Stmt.IVisitor<Object>, Expr.IVisitor<Object>
+    {
+        private readonly Interpreter interpreter = _interpreter;
+        private Stack<Dictionary<string,bool>> scopes = new ();
+
+        private void Resolve(Stmt stmt)
+        {
+            stmt.Accept(this);
+        }
+        private void Resolve(Expr expr)
+        {
+            expr.Accept(this);
+        }
+
+        private void BeginScope()
+        {
+            scopes.Push(new Dictionary<string, bool>());
+        }
+        private void EndScope()
+        {
+            scopes.Pop();
+        }
+
+        private void Resolve(List<Stmt> stmts) 
+        { 
+            foreach (Stmt stmt in stmts)
+            {
+                Resolve(stmt);
+            }
+        }
+
+        private void Declare(Token name)
+        {
+            if (scopes.Count == 0) return;
+            Dictionary<string, bool> scope = scopes.Peek();
+            //we have declared the variable but it's not
+            //ready, hence the false
+            scope.Add(name.lexeme, false);
+        }
+
+        private void Define(Token name)
+        {
+            if (scopes.Count == 0) return;
+            scopes.Peek().Add(name.lexeme, true);
+        }
+
+        private void ResolveLocal(Expr expr, Token name)
+        {
+            for (int i =scopes.Count-1; i >= 0; i--)
+            {
+                var scope = scopes.ElementAt(i);
+                if (scope.ContainsKey(name.lexeme))
+                {
+                    interpreter.Resolve(expr, scopes.Count - 1 - i);
+                    return;
+                }
+            }
+        }
+
+        public object VisitAssignmentExpr(Expr.Assign expr)
+        {
+            Resolve(expr.value);
+            ResolveLocal(expr,expr.name);
+            return null!;
+        }
+
+        public object VisitBinaryExpr(Expr.Binary expr)
+        {
+            Resolve(expr.right);
+            Resolve(expr.left);
+            return null!;
+        }
+
+        public object VisitBlock(Stmt.Block stmt)
+        {
+            BeginScope();
+            Resolve(stmt.statements);
+            EndScope();
+            return null!;
+        }
+
+        public object VisitCallExpr(Expr.Call expr)
+        {
+            Resolve(expr.callee);
+
+            foreach (var arg in expr.arguments)
+            {
+                Resolve(arg);
+            }
+
+            return null!;
+
+        }
+
+        public object VisitExpressionStmt(Stmt.Expression stmt)
+        {
+            Resolve(stmt.expression);
+            return null!;
+        }
+
+        public object VisitFunctionStmt(Stmt.Function stmt)
+        {
+            Declare(stmt.name);
+            Define(stmt.name);
+            ResolveFunction(stmt);
+            return null!;
+        }
+
+        private void ResolveFunction(Stmt.Function stmt) 
+        {
+            BeginScope();
+            foreach (var token in stmt.parameters)
+            {
+                Declare(token);
+                Define(token);
+            }
+            EndScope();
+        }
+
+        public object VisitGroupExpr(Expr.Grouping expr)
+        {
+            Resolve(expr.expression);
+            return null!;   
+        }
+
+        public object VisitIfStmt(Stmt.If stmt)
+        {
+            Resolve(stmt.condition);
+            Resolve(stmt.then_branch);
+            if (stmt.else_branch is not null) Resolve(stmt.else_branch);
+            return null!;
+        }
+
+        public object VisitLiteralExpr(Expr.Literal expr)
+        {
+            return null!;
+        }
+
+        public object VisitLogicalExpr(Expr.Logical expr)
+        {
+            Resolve(expr.right);
+            Resolve(expr.left);
+            return null!;
+        }
+
+        public object VisitPrintStmt(Stmt.Print stmt)
+        {
+            Resolve(stmt.expression);
+            return null!;
+        }
+
+        public object VisitReturnStmt(Stmt.Return stmt)
+        {
+            if(stmt.value is not null)
+            {
+                Resolve(stmt.value);
+            }
+
+            return null!;
+        }
+
+        public object VisitUnaryExpr(Expr.Unary expr)
+        {
+            Resolve(expr.right); 
+            return null!;
+        }
+
+        public object VisitVariableExpr(Expr.Variable expr)
+        {
+            int scopes_count = scopes.Count;
+            _ = scopes.Peek().TryGetValue(expr.name.lexeme, out bool is_defined);
+
+            if (scopes_count > 0  && !is_defined) 
+            {
+                Lox.Error(expr.name, "Can not read a variable in it's own initializer");
+            }
+
+            ResolveLocal(expr, expr.name);
+            return null!;
+        }
+
+        public object VisitVarStmt(Stmt.Var stmt)
+        {
+            Declare(stmt.name);
+            if(stmt.initializer is not null)
+            {
+                Resolve(stmt.initializer);
+            }
+
+            Define(stmt.name);
+            return null!;
+        }
+
+        public object VisitWhileStmt(Stmt.While stmt)
+        {
+            Resolve(stmt.condition);
+            Resolve(stmt.body);
+            return null!;
+        }
+    }
+
+}

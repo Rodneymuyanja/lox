@@ -69,6 +69,13 @@ namespace lox
             Scanner scanner = new (source_code);
             List<Token> tokens = scanner.ScanTokens();
             Parser parser = new (tokens);
+
+            if (had_error)
+            {
+                Console.WriteLine("Error on parsing");
+                return;
+            }
+
             List<Stmt> statements = parser.Parse();
 
             interpreter.Interpret(statements);
