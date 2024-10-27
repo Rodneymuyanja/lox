@@ -2,10 +2,11 @@
 
 namespace lox.src
 {
-    internal class LoxFunction(Stmt.Function _declaration, LoxEnvironment _closure) : ILoxCallable
+    internal class LoxFunction(Stmt.Function _declaration, LoxEnvironment _closure,bool _is_initializer) : ILoxCallable
     {
-        private readonly Stmt.Function declaration = _declaration;
-        private readonly LoxEnvironment closure = _closure;
+        public readonly Stmt.Function declaration = _declaration;
+        public readonly LoxEnvironment closure = _closure;
+        public readonly bool is_initializer = _is_initializer;
         public int Arity()
         {
             return declaration.parameters.Count;
@@ -25,10 +26,18 @@ namespace lox.src
             }
             catch (Return r)
             {
+                if (is_initializer) return closure.GetAt(0, "this");
                 return r.value;
             }
 
             return null!;
+        }
+        
+        public LoxFunction Bind(LoxInstance instance)
+        {
+            LoxEnvironment env = new (closure);
+            env.Define("this", instance);
+            return new LoxFunction(declaration, env, is_initializer);
         }
 
         public override string ToString()

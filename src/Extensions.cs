@@ -6,11 +6,20 @@ namespace lox.src
     {
         public static object get(this Dictionary<string, object> dictionary, string key)
         {
-            return dictionary[key];
+            if(dictionary.TryGetValue(key, out object? value))
+            {
+                return value;
+            }
+            return null!;
         }
-        public static int get(this Dictionary<Expr, Int32> dictionary, Expr key)
+        public static Int32? get(this Dictionary<Expr, Int32> dictionary, Expr key)
         {
-            return dictionary[key];
+            if(dictionary.TryGetValue(key, out int value))
+            {
+                return value;
+            }
+
+            return null;
         }
     }
 }

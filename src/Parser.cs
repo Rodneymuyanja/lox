@@ -9,8 +9,11 @@ namespace lox.src
     /// program             -> declaration* EOF;
     /// declaration         -> vardecl 
     ///                         | statement
-    ///                         | funDecl;
-    /// funDecl             -> "fun" IDENTIFIER "(" parameters? ")" block;
+    ///                         | funDecl
+    ///                         | classDecl;
+    /// classDecl           -> "class" IDENTIFIER "{" function* "}";
+    /// funDecl             -> "fun" function;
+    /// function            -> IDENTIFIER "(" parameters? ")" block
     /// parameters          -> IDENTIFIER ("," IDENTIFIER)*;
     /// statement           -> printStatement 
     ///                         | ifStatement 
@@ -31,7 +34,7 @@ namespace lox.src
     ///                         expression? ")"
     ///                         statement;
     /// expression          -> assignment;
-    /// assignment          -> IDENTIFIER "=" assignment 
+    /// assignment          -> (call ".")? IDENTIFIER "=" assignment 
     ///                        | logical_or;
     /// logical_or          -> logical_and ("or" logical_and)*;
     /// logical_and         -> equality ("and" equality)*;
@@ -40,7 +43,7 @@ namespace lox.src
     /// term                -> factor (( '+' | '-' ) factor)*;
     /// factor              -> unary (('/' | '*') unary)*;
     /// unary               -> ('!' | '-') unary | call;
-    /// call                -> primary("(" arguments? ")")*;
+    /// call                -> primary("(" arguments? ")" | "." IDENTIFIER)*;
     /// arguments           -> expression ("," expression)*;
     /// primary             -> NUMBER 
     ///                        | STRING 
@@ -80,7 +83,7 @@ namespace lox.src
             List<Stmt> statements = [];
             while (!Check(TokenType.RIGHT_BRACE) && !IsAtEnd())
             {
-                statements.Add(Declaration());   
+                statements.Add(Declaration());
             }
 
             Consume(TokenType.RIGHT_BRACE, "Expected '}'");
@@ -109,10 +112,25 @@ namespace lox.src
             if (Match([TokenType.LEFT_BRACE])) return new Stmt.Block(Block());
             if (Match([TokenType.IF])) return IfStatement();
             if (Match([TokenType.WHILE])) return WhileStatement();
-            if (Match([TokenType.FUN])) return Function();
+            if (Match([TokenType.FUN])) return Function("function");
             if (Match([TokenType.RETURN])) return ReturnStatement();
+            if (Match([TokenType.CLASS])) return ClassStatement();
 
             return ExpressionStatement();
+        }
+
+        // classDecl           -> "class" IDENTIFIER "{" function* "}";
+        private Stmt.Class ClassStatement()
+        {
+            Token name = Consume(TokenType.IDENTIFIER, "Expected class name after 'class'");
+            Consume(TokenType.LEFT_BRACE, "Expected '{' after class declaration");
+            List<Stmt.Function> methods = [];
+            while (!Check(TokenType.RIGHT_BRACE) && !IsAtEnd())
+            {
+                methods.Add(Function("method"));
+            }
+            Consume(TokenType.RIGHT_BRACE, "Expected '}' at the end of a class definition");
+            return new Stmt.Class(name, methods);
         }
 
         // returnStatement     -> "return" expression? ";"
@@ -130,7 +148,7 @@ namespace lox.src
         }
 
         // funDecl -> IDENTIFIER "(" parameters? ")" block;
-        private Stmt.Function Function()
+        private Stmt.Function Function(string function_type)
         {
             Token name = Consume(TokenType.IDENTIFIER, "Expected function name");
             Consume(TokenType.LEFT_PAREN, "Expected '(' after function declaration");
@@ -141,12 +159,12 @@ namespace lox.src
             {
                 do
                 {
-                    if(parameters.Count >= MAX_ARGS_LENGTH)
+                    if (parameters.Count >= MAX_ARGS_LENGTH)
                     {
                         Error(Peek(), "Too many parameters");
                     }
 
-                    parameters.Add(Consume(TokenType.IDENTIFIER,"Expected parameter name"));
+                    parameters.Add(Consume(TokenType.IDENTIFIER, "Expected parameter name"));
 
                 } while (Match([TokenType.COMMA]));
             }
@@ -154,10 +172,10 @@ namespace lox.src
             Consume(TokenType.RIGHT_PAREN, "Expected ')' after parameter list");
             Consume(TokenType.LEFT_BRACE, "Expected '{' after function declaration");
             List<Stmt> stmts = Block();
-            return new Stmt.Function(name,parameters, stmts);
+            return new Stmt.Function(name, parameters, stmts);
         }
 
-        // call -> primary("(" arguments? ")")*;
+        // call -> primary("(" arguments? ")" | "." IDENTIFIER)*;
         private Expr Call()
         {
             Expr expr = Primary();
@@ -166,6 +184,11 @@ namespace lox.src
                 if (Match([TokenType.LEFT_PAREN]))
                 {
                     expr = FinishCall(expr);
+                }
+                else if (Match([TokenType.DOT]))
+                {
+                    Token name = Consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
+                    expr = new Expr.Get(expr, name);
                 }
                 else
                 {
@@ -183,7 +206,7 @@ namespace lox.src
             {
                 do
                 {
-                    if(args.Count >= MAX_ARGS_LENGTH)
+                    if (args.Count >= MAX_ARGS_LENGTH)
                     {
                         Error(Peek(), "Too many arguments");
                     }
@@ -193,7 +216,7 @@ namespace lox.src
 
             Token paren = Consume(TokenType.RIGHT_PAREN, "Expected ')' after arguments");
 
-            return new Expr.Call(callee,paren,args);
+            return new Expr.Call(callee, paren, args);
         }
 
         // whileStatement -> "while" "(" expression ")" statement;
@@ -205,7 +228,7 @@ namespace lox.src
 
             Stmt body = Statement();
 
-            return new Stmt.While(condition, body); 
+            return new Stmt.While(condition, body);
         }
 
         // ifStatement -> "if" "(" expression ")" statement
@@ -255,10 +278,14 @@ namespace lox.src
                 Token equals = Previous();
                 Expr value = Assignment();
 
-                if(expr is Expr.Variable v)
+                if (expr is Expr.Variable v)
                 {
                     Token name = v.name;
-                    return new Expr.Assign(name, value);    
+                    return new Expr.Assign(name, value);
+                }
+                else if (expr is Expr.Get get)
+                {
+                    return new Expr.Set(get._object, get.name, value);
                 }
 
                 Error(equals, "Invalid assignment target");
@@ -276,7 +303,7 @@ namespace lox.src
             {
                 Token op = Previous();
                 Expr right = Or();
-                expr = new Expr.Logical(expr,op,right);
+                expr = new Expr.Logical(expr, op, right);
             }
 
             return expr;
@@ -302,7 +329,8 @@ namespace lox.src
         {
             Token name = Consume(TokenType.IDENTIFIER, "Expected an identifier");
             Expr identifier = null!;
-            if (Match([TokenType.EQUAL])) { 
+            if (Match([TokenType.EQUAL]))
+            {
                 identifier = Expression();
             }
 
@@ -323,7 +351,7 @@ namespace lox.src
             {
                 Token op = Previous();
                 Expr right = Comparison();
-                expr = new Expr.Binary(expr, op,right);
+                expr = new Expr.Binary(expr, op, right);
             }
 
             return expr;
@@ -366,7 +394,7 @@ namespace lox.src
             {
                 Token op = Previous();
                 Expr right = Unary();
-                expr = new Expr.Binary(expr ,op, right);
+                expr = new Expr.Binary(expr, op, right);
             }
 
             return expr;
@@ -409,6 +437,11 @@ namespace lox.src
                 return new Expr.Grouping(expr);
             }
 
+            if (Match([TokenType.THIS]))
+            {
+                return new Expr.This(Previous());
+            }
+
             //at this point i don't know what was passed ngl
             throw Error(Peek(), "Expected expression [primary]");
         }
@@ -419,18 +452,40 @@ namespace lox.src
 
             throw Error(Peek(), message);
         }
-        
+
         //gets the previous token
         //the one behind current
         private Token Previous()
         {
-            return tokens[current-1];
+            return tokens[current - 1];
         }
 
         //this is a lookahead, but no advance
         private Token Peek()
         {
             return tokens[current];
+        }
+
+        private bool CheckClassEnd()
+        {
+            if (Check(TokenType.RIGHT_BRACE))
+            {
+                //this means the function is done
+
+                Token token = PeekNext();
+                if (token.token_type == TokenType.RIGHT_BRACE)
+                {
+                    return true;
+                }
+                Consume(TokenType.RIGHT_BRACE, "Expected '}' at method end");
+            }
+
+            return false;
+        }
+
+        private Token PeekNext()
+        {
+            return tokens[current + 1];
         }
 
         //checks if the next token is the end
@@ -443,7 +498,7 @@ namespace lox.src
         //in the stream
         private Token Advance()
         {
-            if(!IsAtEnd())
+            if (!IsAtEnd())
             {
                 current++;
             }
@@ -459,14 +514,14 @@ namespace lox.src
 
             return Peek().token_type == type;
         }
-        
+
         //checks if the next token is in a certain list
         //note it advances into the stream
         private bool Match(List<TokenType> token_types)
         {
             foreach (var token_type in token_types)
             {
-                if(Check(token_type))
+                if (Check(token_type))
                 {
                     Advance();
                     return true;
@@ -527,7 +582,7 @@ namespace lox.src
             }
             //for(var i = 0...
             //variable declaration
-            else if( Match([TokenType.VAR]))
+            else if (Match([TokenType.VAR]))
             {
                 initializer = VarDeclaration();
             }
@@ -559,7 +614,7 @@ namespace lox.src
             Consume(TokenType.RIGHT_PAREN, "Expected ')' to close for");
 
             Stmt body = Statement();
-            if(increment is not null)
+            if (increment is not null)
             {
                 List<Stmt> body_bits = [];
                 body_bits.Add(body);
@@ -578,7 +633,7 @@ namespace lox.src
             //a while loop
             body = new Stmt.While(condition, body);
 
-            if(initializer is not null)
+            if (initializer is not null)
             {
                 List<Stmt> body_bits2 = [];
                 //make the initializer part of the body

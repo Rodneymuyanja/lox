@@ -19,7 +19,6 @@ namespace lox
         private static readonly Interpreter interpreter = new ();
         public static void Main()
         {
-            Console.WriteLine("started lox");
             string[] args = Environment.GetCommandLineArgs();
 
             //Console.WriteLine("args {0}", string.Join(',',args));

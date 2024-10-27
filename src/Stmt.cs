@@ -13,6 +13,7 @@ namespace lox.src
             public T VisitWhileStmt(Stmt.While stmt);
             public T VisitFunctionStmt(Stmt.Function stmt);
             public T VisitReturnStmt(Stmt.Return stmt);
+            public T VisitClassStmt(Stmt.Class stmt);
         }
 
         public abstract T Accept<T>(Stmt.IVisitor<T> visitor);
@@ -98,6 +99,17 @@ namespace lox.src
             public override T Accept<T>(IVisitor<T> visitor)
             {
                 return visitor.VisitReturnStmt(this);
+            }
+        }
+
+        public class Class(Token _name, List<Stmt.Function> _methods) : Stmt
+        {
+            public Token name = _name;
+            public List<Stmt.Function> methods = _methods;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitClassStmt(this);
             }
         }
     }

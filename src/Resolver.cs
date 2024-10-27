@@ -6,10 +6,19 @@ namespace lox.src
         private readonly Interpreter interpreter = _interpreter;
         private Stack<Dictionary<string,bool>> scopes = new ();
         private FunctionType current_function_type = FunctionType.NONE;
+        private ClassType current_class_type = ClassType.NONE;
         private enum FunctionType
         {
             NONE,
-            FUNCTION
+            FUNCTION,
+            METHOD,
+            INITIALIZER
+        }
+
+        private enum ClassType
+        {
+            NONE,
+            CLASS
         }
 
         private void Resolve(Stmt stmt)
@@ -49,12 +58,14 @@ namespace lox.src
             //we have declared the variable but it's not
             //ready, hence the false
             scope.Add(name.lexeme, false);
+
         }
 
         private void Define(Token name)
         {
             if (scopes.Count == 0) return;
-            scopes.Peek().Add(name.lexeme, true);
+            var scope = scopes.Peek();
+            scope[name.lexeme] = true;
         }
 
         private void ResolveLocal(Expr expr, Token name)
@@ -168,6 +179,11 @@ namespace lox.src
         {
             if(stmt.value is not null)
             {
+                if(current_function_type == FunctionType.INITIALIZER)
+                {
+                    Lox.Error(stmt.Keyword, "_$init() can not return explicit values");
+                }
+
                 Resolve(stmt.value);
             }
 
@@ -210,6 +226,53 @@ namespace lox.src
         {
             Resolve(stmt.condition);
             Resolve(stmt.body);
+            return null!;
+        }
+
+        public object VisitClassStmt(Stmt.Class stmt)
+        {
+            ClassType enclosing_class_type = current_class_type;
+            current_class_type = ClassType.CLASS;
+
+            BeginScope();
+            Declare(stmt.name);
+            Define(stmt.name);
+            
+            var scope = scopes.Peek();
+            scope.Add("this", true);
+
+            foreach (var function in stmt.methods)
+            {
+                FunctionType function_type = FunctionType.METHOD;
+                ResolveFunction(function, function_type);
+            }
+
+            //EndScope();
+            current_class_type = enclosing_class_type;
+            return null!;
+        }
+
+        public object VisitGetExpr(Expr.Get expr)
+        {
+            Resolve(expr._object);
+            return null!;
+        }
+
+        public object VisitSetExpr(Expr.Set expr)
+        {
+            Resolve(expr._object);
+            Resolve(expr.value);
+            return null!;
+        }
+
+        public object VisitThisExpr(Expr.This expr)
+        {
+            if(current_class_type == ClassType.NONE)
+            {
+                Lox.Error(expr.keyword, "Can not use 'this' outside a class");
+            }
+
+            ResolveLocal(expr,expr.keyword);
             return null!;
         }
     }

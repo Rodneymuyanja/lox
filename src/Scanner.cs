@@ -272,7 +272,7 @@ namespace lox.src
         {
             return (c >= 'A' && c <= 'Z')||
                 (c >= 'a' && c <= 'z') ||
-                c == '_';
+                c == '_' || c == '$';
         }
         private bool IsAlphaNumeric(char c)
         {

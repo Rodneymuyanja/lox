@@ -158,8 +158,9 @@ namespace lox.src
                 return env!.GetAt(distance.Value, name.lexeme);
             }
 
-            return globals.Get(name);
+            return env!.Get(name);
         }
+
         private bool CheckAnyString(Object left, Object right)
         {
             if(left is String || right is String)
@@ -345,7 +346,7 @@ namespace lox.src
 
         public object VisitFunctionStmt(Stmt.Function stmt)
         {
-            LoxFunction function = new(stmt, env!);
+            LoxFunction function = new(stmt, env!, false);
             //the function is defined in the current scope
             env!.Define(stmt.name.lexeme,function);
             return null!;
@@ -359,6 +360,60 @@ namespace lox.src
                 value = Evaluate(stmt.value);
             }
             throw new Return(value!);
+        }
+
+        public object VisitClassStmt(Stmt.Class stmt)
+        {
+            env!.Define(stmt.name.lexeme, null!);
+            Dictionary<string, LoxFunction> methods = [];
+
+            foreach (var function in stmt.methods)
+            {
+                LoxFunction method = new (function, env, false);
+
+                if (method.declaration.name.lexeme == "_$init")
+                {
+                    method = new LoxFunction(function, env, true);
+                }
+
+                
+                methods.Add(method.declaration.name.lexeme, method);
+            }
+
+            LoxClass _lox_class = new (stmt.name.lexeme,methods);
+            env.Assign(stmt.name, _lox_class);
+            return null!;
+        }
+
+        public object VisitGetExpr(Expr.Get expr)
+        {
+            object obj = Evaluate(expr._object);
+            if(obj is LoxInstance instance)
+            {
+                return instance.Get(expr.name);
+            }
+
+            throw new RuntimeError(expr.name, "Only instances can have properties");
+        }
+
+        public object VisitSetExpr(Expr.Set expr)
+        {
+            object obj = Evaluate(expr._object);
+            if (obj is not LoxInstance)
+            {
+                throw new RuntimeError(expr.name, "Only instance fields can be set");
+            }
+
+            LoxInstance instance = (LoxInstance)obj;
+            object value = Evaluate(expr.value);
+
+            instance.Set(expr.name, value);
+            return value;
+        }
+
+        public object VisitThisExpr(Expr.This expr)
+        {
+            return LookUpVariable(expr.keyword, expr);
         }
     }
 }

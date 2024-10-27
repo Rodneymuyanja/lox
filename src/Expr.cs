@@ -10,13 +10,16 @@ namespace lox.src
             public T VisitGroupExpr(Expr.Grouping expr);
             public T VisitUnaryExpr(Expr.Unary expr);
             public T VisitBinaryExpr(Expr.Binary expr);
-            public T VisitVariableExpr(Expr.Variable expr); 
-            public T VisitAssignmentExpr(Expr.Assign expr); 
+            public T VisitVariableExpr(Expr.Variable expr);
+            public T VisitAssignmentExpr(Expr.Assign expr);
             public T VisitLogicalExpr(Expr.Logical expr);
             public T VisitCallExpr(Expr.Call expr);
+            public T VisitGetExpr(Expr.Get expr);
+            public T VisitSetExpr(Expr.Set expr);
+            public T VisitThisExpr(Expr.This expr);
         }
 
-        public abstract T Accept <T>(IVisitor<T> visitor);
+        public abstract T Accept<T>(IVisitor<T> visitor);
         public class Binary(Expr _left, Token _operator, Expr _right) : Expr
         {
             public Expr left = _left;
@@ -99,6 +102,37 @@ namespace lox.src
             public override T Accept<T>(IVisitor<T> visitor)
             {
                 return visitor.VisitCallExpr(this);
+            }
+        }
+
+        public class Get(Expr _object, Token _name) : Expr
+        {
+            public Expr _object = _object;
+            public Token name = _name;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitGetExpr(this);
+            }
+        }
+        public class Set(Expr _object, Token _name, Expr _value) : Expr
+        {
+            public Expr _object = _object;
+            public Token name = _name;
+            public Expr value = _value;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitSetExpr(this);
+            }
+        }
+        public class This(Token _keyword) : Expr
+        {
+            public Token keyword = _keyword;
+
+            public override T Accept<T>(IVisitor<T> visitor)
+            {
+                return visitor.VisitThisExpr(this);
             }
         }
     }
